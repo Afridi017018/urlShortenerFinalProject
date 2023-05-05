@@ -1,8 +1,9 @@
 const regSchema = `
 CREATE TABLE IF NOT EXISTS 
-registration (
-id INT PRIMARY KEY AUTO_INCREMENT, 
-Email VARCHAR(255), Password INT
+registration ( 
+Email VARCHAR(255) UNIQUE NOT NULL,
+Password INT NOT NULL,
+PRIMARY KEY(Email)
 );
 `;
 
