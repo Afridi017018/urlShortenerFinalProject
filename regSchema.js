@@ -8,4 +8,5 @@ PRIMARY KEY(Email)
 `;
 
 
+
 module.exports = regSchema;
