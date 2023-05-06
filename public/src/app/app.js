@@ -4,8 +4,11 @@ require("dotenv").config()
 const shortid = require("shortid")
 const { v4: uuidv4 } = require("uuid")
 const session = require("express-session")
-const { passport } = require('./passportAuth')
-const con = require("./dbConnection")
+const { passport } = require('../passportAuth/passportAuth')
+const con = require("../dbConnection/dbConnection")
+const bcrypt = require("bcrypt")
+
+const saltRounds = 10;
 
 
 
@@ -16,7 +19,7 @@ const app = express();
 app.use(express.json())
 
 app.use(session({
-    secret: "Askjdgaksf",
+    secret: process.env.secret,
     resave: false,
     saveUninitialized: true,
     cookie: { secure: false }
@@ -74,12 +77,13 @@ app.post("/url", (req, res) => {
 
 
 
+
 const isAuthenticated = (req, res, next) => {
 
     if (req.user) {
         return next();
     }
-    return res.send("Login please")
+    return res.send("Login please!")
 }
 
 
@@ -106,6 +110,37 @@ app.get("/showUrl", isAuthenticated, (req, res) => {
     })
 
 })
+
+
+
+
+
+
+app.delete('/urlDelete', isAuthenticated, async (req, res) => {
+
+    const { shortUrl } = req.body;
+    const email = req.user.Email;
+
+    con.query("SELECT * FROM url WHERE url = ? AND Email = ? ", [shortUrl, email], (err, result) => {
+
+        if (result.length > 0) {
+
+            let deleted = result[0];
+            con.query("DELETE from url WHERE url = ? AND Email = ? ", [shortUrl, email], (err, result) => {
+                res.send(`Short url : '${deleted.url}' has been successfully deleted!`);
+            })
+
+        }
+
+        else {
+            res.send("No such url found!")
+        }
+
+    })
+})
+
+
+
 
 app.put('/urlUpdate', isAuthenticated, async (req, res) => {
 
@@ -145,6 +180,7 @@ app.put('/urlUpdate', isAuthenticated, async (req, res) => {
 
 
 
+
 app.post('/login', passport.authenticate('local', {
     successRedirect: "/",
     failureRedirect: '/login'
@@ -161,13 +197,13 @@ app.post("/reg", (req, res) => {
 
     else {
 
-        con.query("SELECT email FROM registration WHERE email = ?", [email], (err, result) => {
+        con.query("SELECT email FROM registration WHERE email = ?", [email], async (err, result) => {
             if ((result.length > 0)) {
                 res.send("Email is already registered !")
             }
             else {
-
-                con.query("INSERT INTO registration (Email,Password) VALUES (? , ?);", [email, password], (err, result) => {
+                const hashedPassword = await bcrypt.hash(password, saltRounds);
+                con.query("INSERT INTO registration (Email,Password) VALUES (? , ?);", [email, hashedPassword], (err, result) => {
                     if (err) throw err;
                     res.send("Registered Successfully !!!")
                 })

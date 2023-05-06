@@ -1,6 +1,6 @@
 const mysql = require("mysql");
-const regSchema = require("./regSchema");
-const urlSchema = require("./urlSchema");
+const regSchema = require("../dbSchema/regSchema/regSchema");
+const urlSchema = require("../dbSchema/urlSchema/urlSchema");
 
 const databaseConfig = {
     host: "localhost",
