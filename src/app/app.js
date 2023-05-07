@@ -116,7 +116,7 @@ app.get("/showUrl", isAuthenticated, (req, res) => {
 
 
 
-app.delete('/urlDelete', isAuthenticated, async (req, res) => {
+app.delete('/deleteUrl', isAuthenticated, async (req, res) => {
 
     const { shortUrl } = req.body;
     const email = req.user.Email;
@@ -142,7 +142,7 @@ app.delete('/urlDelete', isAuthenticated, async (req, res) => {
 
 
 
-app.put('/urlUpdate', isAuthenticated, async (req, res) => {
+app.put('/updateUrl', isAuthenticated, async (req, res) => {
 
     const { oldUrl, newUrl } = req.body;
     const email = req.user.Email;
@@ -178,6 +178,32 @@ app.put('/urlUpdate', isAuthenticated, async (req, res) => {
 
 })
 
+
+
+app.post("/customUrl", isAuthenticated, (req, res) => {
+    const { redirectUrl, shortUrl } = req.body;
+
+    con.query("SELECT * FROM url WHERE url =  ? ", [shortUrl], (err, result) => {
+
+        if (result.length > 0) {
+            res.send("Already have this short url,try with a new one")
+        }
+
+        else {
+
+            const email = req.user.Email;
+            const uuid = uuidv4();
+            con.query("INSERT INTO url(id,Email,url,redirectUrl) VALUES (?,?,?,?)", [uuid, email, shortUrl, redirectUrl], (err, result) => {
+                if (err) throw err;
+
+                res.json({ "email": email, "shortUrl": shortUrl, "RedirectUrl": redirectUrl })
+            })
+
+        }
+
+    })
+
+})
 
 
 
