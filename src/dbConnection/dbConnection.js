@@ -1,13 +1,8 @@
 const mysql = require("mysql");
-const regSchema = require("../dbSchema/regSchema/regSchema");
-const urlSchema = require("../dbSchema/urlSchema/urlSchema");
+const usersSchema = require("../dbSchema/usersSchema/usersSchema");
+const urlsSchema = require("../dbSchema/urlsSchema/urlsSchema");
 
-const databaseConfig = {
-    host: "localhost",
-    user: "root",
-    password: "",
-    database: "testing"
-}
+const databaseConfig = process.env.dbConfig;
 
 const con = mysql.createConnection(databaseConfig);
 
@@ -21,7 +16,7 @@ con.connect((err) => {
 })
 
 
-con.query(regSchema);
-con.query(urlSchema);
+con.query(usersSchema);
+con.query(urlsSchema);
 
 module.exports = con;

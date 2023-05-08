@@ -12,9 +12,9 @@ passport.use(new LocalStrategy(
     function (email, password, done) {
 
 
-        con.query("SELECT * FROM registration WHERE Email = ?", [email], async function (err, result) {
+        con.query("SELECT * FROM users WHERE email = ?", [email], async function (err, result) {
 
-            const comparedPassword = await bcrypt.compare(password, result[0].Password);
+            const comparedPassword = await bcrypt.compare(password, result[0].password);
 
             if (err) {
 
@@ -37,16 +37,16 @@ passport.use(new LocalStrategy(
 passport.serializeUser((user, done) => {
 
     if (user) {
-        return done(null, user.Email)
+        return done(null, user.id)
     }
     return done(null, false)
 })
 
-passport.deserializeUser((Email, done) => {
+passport.deserializeUser((id, done) => {
 
-    con.query("SELECT * FROM registration WHERE Email = ?", [Email], (err, result) => {
+    con.query("SELECT * FROM users WHERE id = ?", [id], (err, result) => {
         if (err) {
-            return done(error);
+            return done(err);
         }
         if (result.length) {
             return done(null, result[0]);

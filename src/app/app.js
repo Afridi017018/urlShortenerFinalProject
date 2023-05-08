@@ -2,7 +2,8 @@
 const express = require("express")
 require("dotenv").config()
 const shortid = require("shortid")
-const { v4: uuidv4 } = require("uuid")
+// const { v4: uuidv4 } = require("uuid")
+const isReachable = require('is-reachable');
 const session = require("express-session")
 const { passport } = require('../passportAuth/passportAuth')
 const con = require("../dbConnection/dbConnection")
@@ -33,15 +34,20 @@ app.use(passport.session())
 
 
 
-app.get("/url/:shortId", (req, res) => {
-    const { shortId } = req.params;
-    con.query("SELECT redirectUrl From url WHERE url = ?", [shortId], (err, result) => {
-        if (result.length > 0) {
-            res.redirect(result[0].redirectUrl)
+
+app.get("/url/:short_url", (req, res) => {
+    const { short_url } = req.params;
+
+    con.query("SELECT redirect_url From urls WHERE short_url = ?", [short_url], (err, result) => {
+        
+          if (result.length > 0) {
+            res.redirect(result[0].redirect_url)
         }
 
-        else
-            res.send("Invalid URL")
+        else{
+            res.status(400).json({"message":"Invalid URL"})
+        }
+     
     })
 
 })
@@ -50,26 +56,36 @@ app.get("/url/:shortId", (req, res) => {
 
 
 
-app.post("/url", (req, res) => {
-    const { url } = req.body
-    const shortId = shortid()
-    const uuid = uuidv4();
+app.post("/url", async(req, res) => {
+    const { redirect_url } = req.body
+
+    const reachable = await isReachable(redirect_url)
+    
+    if(!reachable)
+    {
+        res.status(400).json({"message": "Given URL is not valid"})
+    }
+
+    else{
+        const short_url = shortid();
 
     if (req.user) {
-        const email = req.user.Email;
-        con.query("INSERT INTO url(id,Email,url,redirectUrl) VALUES (?,?,?,?)", [uuid, email, shortId, url], (err, result) => {
+        const user_id = req.user.id
+        
+        con.query("INSERT INTO urls(short_url,redirect_url,user_id) VALUES (?,?,?)", [short_url, redirect_url,user_id], (err, result) => {
             if (err) throw err;
 
-            res.json({ "email": email, "shortUrl": shortId, "RedirectUrl": url })
+            res.json({ "user_id": user_id,"short_url": short_url, "redirect_url": redirect_url })
         })
     }
 
     else {
-        con.query("INSERT INTO url(id,url,redirectUrl) VALUES (?,?,?)", [uuid, shortId, url], (err, result) => {
+        con.query("INSERT INTO urls(short_url,redirect_url) VALUES (?,?)", [short_url, redirect_url], (err, result) => {
             if (err) throw err;
 
-            res.json({ "shortUrl": shortId, "RedirectUrl": url })
+            res.json({ "short_url": short_url, "redirect_url": redirect_url })
         })
+    }
     }
 
 })
@@ -79,33 +95,34 @@ app.post("/url", (req, res) => {
 
 
 const isAuthenticated = (req, res, next) => {
+    // console.log(req.user)
 
     if (req.user) {
         return next();
     }
-    return res.send("Login please!")
+    return res.json({"message":"Login please!"})
 }
 
 
 app.get("/", isAuthenticated, (req, res) => {
 
-    res.send("WELCOME!!!")
+    res.json({"message":"WELCOME!!!"})
 
 })
 
 
-app.get("/showUrl", isAuthenticated, (req, res) => {
-    const email = req.user.Email;
+app.get("/show-url", isAuthenticated, (req, res) => {
+    const user_id = req.user.id;
 
 
-    con.query("SELECT url,redirectUrl FROM url WHERE Email = ? ", [email], (err, result) => {
+    con.query("SELECT short_url,redirect_url FROM urls WHERE user_id = ? ", [user_id], (err, result) => {
 
         if (result.length > 0) {
-            res.send(result)
+            res.json(result)
         }
 
         else {
-            res.send("List is empty!")
+            res.json({"message":"List is empty!"})
         }
     })
 
@@ -116,24 +133,24 @@ app.get("/showUrl", isAuthenticated, (req, res) => {
 
 
 
-app.delete('/deleteUrl', isAuthenticated, async (req, res) => {
+app.delete('/delete-url/:short_url', isAuthenticated, async (req, res) => {
 
-    const { shortUrl } = req.body;
-    const email = req.user.Email;
+    const { short_url } = req.params;
+    const user_id = req.user.id;
 
-    con.query("SELECT * FROM url WHERE url = ? AND Email = ? ", [shortUrl, email], (err, result) => {
+    con.query("SELECT * FROM urls WHERE short_url = ? AND user_id = ? ", [short_url, user_id], (err, result) => {
 
         if (result.length > 0) {
 
             let deleted = result[0];
-            con.query("DELETE from url WHERE url = ? AND Email = ? ", [shortUrl, email], (err, result) => {
-                res.send(`Short url : '${deleted.url}' has been successfully deleted!`);
+            con.query("DELETE from urls WHERE short_url = ? AND user_id = ? ", [short_url, user_id], (err, result) => {
+                res.json({"message":  `Short url : '${deleted.short_url}' has been successfully deleted!`});
             })
 
         }
 
         else {
-            res.send("No such url found!")
+            res.status(400).json({"message": "No such url found!"})
         }
 
     })
@@ -142,24 +159,24 @@ app.delete('/deleteUrl', isAuthenticated, async (req, res) => {
 
 
 
-app.put('/updateUrl', isAuthenticated, async (req, res) => {
+app.put('/update-url', isAuthenticated, async (req, res) => {
 
-    const { oldUrl, newUrl } = req.body;
-    const email = req.user.Email;
+    const { old_url, new_url } = req.body;
+    const user_id = req.user.id;
 
-    con.query("SELECT * FROM url WHERE url = ? AND Email = ? ", [oldUrl, email], (err, result) => {
+    con.query("SELECT * FROM urls WHERE short_url = ? AND user_id = ? ", [old_url, user_id], (err, result) => {
 
         if (result.length > 0) {
 
-            con.query("SELECT * FROM url WHERE url =  ? ", [newUrl], (err, result) => {
+            con.query("SELECT * FROM urls WHERE short_url =  ? ", [new_url], (err, result) => {
 
                 if (result.length > 0) {
-                    res.send("Already have this short url,try with a new one")
+                    res.json({"message":"Already have this short url,try with a new one"})
                 }
 
                 else {
-                    con.query("UPDATE url SET url = ? WHERE url = ? AND Email = ? ", [newUrl, oldUrl, email], (err, result) => {
-                        res.send("Url updated!")
+                    con.query("UPDATE urls SET short_url = ? WHERE short_url = ? AND user_id = ? ", [new_url, old_url, user_id], (err, result) => {
+                        res.json({"message":"Url updated!"})
                     })
                 }
 
@@ -169,7 +186,7 @@ app.put('/updateUrl', isAuthenticated, async (req, res) => {
         }
 
         else {
-            res.send("No such url found!")
+            res.status(400).json({"message":"No such url found!"})
         }
 
     })
@@ -180,23 +197,28 @@ app.put('/updateUrl', isAuthenticated, async (req, res) => {
 
 
 
-app.post("/customUrl", isAuthenticated, (req, res) => {
-    const { redirectUrl, shortUrl } = req.body;
+app.post("/custom-url", isAuthenticated, (req, res) => {
+    const { short_url , redirect_url} = req.body;
 
-    con.query("SELECT * FROM url WHERE url =  ? ", [shortUrl], (err, result) => {
+    if(!isValidUrl(redirect_url))
+    {
+          res.status(400).json({"message": "Given url is not valid"})
+    }
+
+    con.query("SELECT * FROM urls WHERE short_url =  ? ", [short_url], (err, result) => {
 
         if (result.length > 0) {
-            res.send("Already have this short url,try with a new one")
+            res.json({"message":"Already have this short url,try with a new one"})
         }
 
         else {
 
-            const email = req.user.Email;
-            const uuid = uuidv4();
-            con.query("INSERT INTO url(id,Email,url,redirectUrl) VALUES (?,?,?,?)", [uuid, email, shortUrl, redirectUrl], (err, result) => {
+            const user_id = req.user.id;
+          
+            con.query("INSERT INTO urls(short_url,redirect_url,user_id) VALUES (?,?,?)", [short_url, redirect_url,user_id], (err, result) => {
                 if (err) throw err;
 
-                res.json({ "email": email, "shortUrl": shortUrl, "RedirectUrl": redirectUrl })
+                res.json({ "user_id": user_id, "short_url": short_url, "redirect_url": redirect_url })
             })
 
         }
@@ -209,29 +231,31 @@ app.post("/customUrl", isAuthenticated, (req, res) => {
 
 app.post('/login', passport.authenticate('local', {
     successRedirect: "/",
-    failureRedirect: '/login'
+    failureRedirect: '/'
 }));
 
 
-app.post("/reg", (req, res) => {
+app.post("/registration", (req, res) => {
 
-    const { email, password, confirmPass } = req.body;
+    const { email, password, confirm_password } = req.body;
+    // console.log(req.body)
 
-    if (password !== confirmPass || !password || !email) {
-        res.send("Invalid Registration")
+    if (password !== confirm_password || !password || !email) {
+        res.status(400).json({message: "Invalid Registration"})
     }
 
     else {
 
-        con.query("SELECT email FROM registration WHERE email = ?", [email], async (err, result) => {
+        con.query("SELECT email FROM users WHERE email = ?", [email], async (err, result) => {
             if ((result.length > 0)) {
-                res.send("Email is already registered !")
+                res.status(400).json({ message: "Email is already registered !" });
+
             }
             else {
                 const hashedPassword = await bcrypt.hash(password, saltRounds);
-                con.query("INSERT INTO registration (Email,Password) VALUES (? , ?);", [email, hashedPassword], (err, result) => {
+                con.query("INSERT INTO users (email,password) VALUES (? , ?);", [email, hashedPassword], (err, result) => {
                     if (err) throw err;
-                    res.send("Registered Successfully !!!")
+                    res.json({"message":"Registered Successfully !!!"})
                 })
             }
 
