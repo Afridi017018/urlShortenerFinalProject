@@ -39,8 +39,9 @@ app.get("/url/:short_url", (req, res) => {
     const current_date = moment().tz('Asia/Dhaka').format('YYYY-MM-DDTHH:mm:ss');
 
     con.query("SELECT redirect_url,expire_at From urls WHERE short_url = ?", [short_url], (err, result) => {
+    
 
-        if (result.length > 0 && result[0].expire_at >= current_date) {
+        if (result.length > 0 && result[0].expire_at > current_date || !result[0].expire_at) {
             res.redirect(result[0].redirect_url)
         }
 
@@ -265,7 +266,6 @@ app.delete("/admin-delete-url/:url_id", isAuthenticated, (req, res) => {
     }
 
     const { url_id } = req.params;
-    // const user_id = req.user.id;
 
     con.query("SELECT * FROM urls WHERE id = ? ", [url_id], (err, result) => {
 
