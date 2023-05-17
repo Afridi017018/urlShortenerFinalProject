@@ -9,18 +9,14 @@ passport.use(new LocalStrategy(
         passwordField: 'password'
     },
 
-    function (email, password, done) {
+    async function (email, password, done) {
 
 
-        con.query("SELECT * FROM users WHERE email = ?", [email], async function (err, result) {
+            const result = await con.promise().query("SELECT * FROM users WHERE email = ?", [email])
 
-            const comparedPassword = await bcrypt.compare(password, result[0].password);
+            const comparedPassword = await bcrypt.compare(password, result[0][0].password);
 
-            if (err) {
-
-                return done(err);
-            }
-            if (!result.length) {
+            if (!result[0].length) {
 
                 return done(null, false);
             }
@@ -29,8 +25,8 @@ passport.use(new LocalStrategy(
                 return done(null, false);
             }
 
-            return done(null, result[0]);
-        });
+            return done(null, result[0][0]);
+
     }
 ));
 
@@ -42,17 +38,15 @@ passport.serializeUser((user, done) => {
     return done(null, false)
 })
 
-passport.deserializeUser((id, done) => {
+passport.deserializeUser( async(id, done) => {
 
-    con.query("SELECT * FROM users WHERE id = ?", [id], (err, result) => {
-        if (err) {
-            return done(err);
-        }
-        if (result.length) {
-            return done(null, result[0]);
+    const result = await con.promise().query("SELECT * FROM users WHERE id = ?", [id])
+    
+        if (result[0].length) {
+            return done(null, result[0][0]);
         }
         return done(null, false);
-    })
+
 });
 
 

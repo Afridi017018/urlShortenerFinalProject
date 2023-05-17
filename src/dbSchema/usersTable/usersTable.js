@@ -1,4 +1,4 @@
-const usersSchema = `CREATE TABLE IF NOT EXISTS users(
+const usersTable = `CREATE TABLE IF NOT EXISTS users(
     id BIGINT  NOT NULL UNIQUE AUTO_INCREMENT,
     email VARCHAR(1000) NOT NULL UNIQUE,
     password VARCHAR(1000) NOT NULL,
@@ -9,4 +9,4 @@ const usersSchema = `CREATE TABLE IF NOT EXISTS users(
 
 
 
-module.exports = usersSchema;
+module.exports = usersTable;
