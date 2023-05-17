@@ -11,6 +11,8 @@ const creatingUrlValidator = require("../validator/creatingUrlValidator")
 const updateForAuthValidator = require("../validator/updateForAuthValidator")
 const customForAuthValidator = require("../validator/customForAuthValidator")
 const registrationValidator = require("../validator/registrationValidator")
+const shortUrlParamsValidator = require("../validator/shortUrlParamsValidator")
+const adminDeleteValidator = require("../validator/adminDeleteValidator")
 const { passport } = require('../passportAuth/passportAuth')
 const con = require("../dbConnection/dbConnection")
 const bcrypt = require("bcrypt");
@@ -38,12 +40,22 @@ app.use(passport.session())
 
 
 app.get("/url/:short_url", async (req, res) => {
+
+    const isValid = ajv.compile(shortUrlParamsValidator)(req.params)
+
+    if (!isValid) {
+        return res.status(400).json({ "message": "Invalid input type!" })
+    }
+
     const { short_url } = req.params;
     const current_date = moment().tz('Asia/Dhaka').format('YYYY-MM-DDTHH:mm:ss');
 
     const result = await con.promise().query("SELECT redirect_url,expire_at From urls WHERE short_url = ?", [short_url])
 
-    if (result[0].length > 0 && result[0][0].expire_at > current_date || !result[0][0].expire_at) {
+    if (result[0].length < 1)
+        return res.status(400).json({ "message": "Invalid URL" })
+
+    if ((result[0].length > 0 && result[0][0].expire_at > current_date) || !result[0][0].expire_at) {
         res.redirect(result[0][0].redirect_url)
     }
 
@@ -153,6 +165,11 @@ app.get("/show-url", isAuthenticated, async (req, res) => {
 
 app.delete('/delete-url/:short_url', isAuthenticated, async (req, res) => {
 
+    const isValid = ajv.compile(shortUrlParamsValidator)(req.params)
+
+    if (!isValid) {
+        return res.status(400).json({ "message": "Invalid input type!" })
+    }
     const { short_url } = req.params;
     const user_id = req.user.id;
 
@@ -265,6 +282,14 @@ app.post("/custom-url", isAuthenticated, async (req, res) => {
 
 app.delete("/admin-delete-url/:url_id", isAuthenticated, async (req, res) => {
 
+    const parse = parseInt(req.params.url_id);
+
+    const isValid = ajv.compile(adminDeleteValidator)(parse)
+
+    if (!isValid) {
+        return res.status(400).json({ "message": "Invalid input type!" })
+    }
+
     const admin = await con.promise().query("SELECT id FROM roles WHERE role = ?", ["admin"])
 
 
@@ -353,7 +378,6 @@ app.post("/registration", async (req, res) => {
             res.json({ "message": "Registered Successfully !!!" })
 
         }
-
 
 
 
